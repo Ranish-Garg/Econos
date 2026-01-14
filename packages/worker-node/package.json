@@ -1,0 +1,39 @@
+{
+    "name": "@econos/worker-node",
+    "version": "1.0.0",
+    "description": "Econos Protocol Worker Node - Paid AI service provider with HTTP 402 monetization",
+    "main": "dist/index.js",
+    "scripts": {
+        "dev": "nodemon --exec ts-node src/index.ts",
+        "build": "tsc",
+        "start": "node dist/index.js",
+        "typecheck": "tsc --noEmit"
+    },
+    "keywords": [
+        "econos",
+        "cronos",
+        "zkevm",
+        "x402",
+        "ai-agent"
+    ],
+    "author": "",
+    "license": "MIT",
+    "dependencies": {
+        "@google/genai": "^1.35.0",
+        "@google/generative-ai": "^0.21.0",
+        "dotenv": "^16.4.7",
+        "ethers": "^6.13.4",
+        "express": "^4.21.2",
+        "uuid": "^11.0.4",
+        "winston": "^3.17.0",
+        "zod": "^3.24.1"
+    },
+    "devDependencies": {
+        "@types/express": "^5.0.0",
+        "@types/node": "^22.10.7",
+        "@types/uuid": "^10.0.0",
+        "nodemon": "^3.1.9",
+        "ts-node": "^10.9.2",
+        "typescript": "^5.7.3"
+    }
+}
