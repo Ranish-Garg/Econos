@@ -19,7 +19,7 @@
     },
     "include": [
         "src/**/*"
-    ],
+, "src/master"    ],
     "exclude": [
         "node_modules",
         "dist"

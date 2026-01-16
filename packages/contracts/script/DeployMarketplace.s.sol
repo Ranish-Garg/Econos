@@ -28,8 +28,8 @@ contract DeployMarketplace is Script {
         console.log("AgentPaymaster:", address(paymaster));
 
         // 5. Fund Paymaster (Gas Tank) - Send 1 zkTCRO
-        (bool success, ) = address(paymaster).call{value: 1 ether}("");
-        require(success, "Failed to fund paymaster");
+        // (bool success, ) = address(paymaster).call{value: 1 ether}("");
+        // require(success, "Failed to fund paymaster");
 
         vm.stopBroadcast();
     }
