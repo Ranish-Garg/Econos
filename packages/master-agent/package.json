@@ -1,0 +1,41 @@
+{
+    "name": "@econos/master-agent",
+    "version": "1.0.0",
+    "description": "Econos Protocol Master Agent - Task orchestration, worker selection, and escrow management",
+    "main": "dist/index.js",
+    "types": "dist/index.d.ts",
+    "scripts": {
+        "dev": "nodemon --exec ts-node src/index.ts",
+        "build": "tsc",
+        "start": "node dist/index.js",
+        "typecheck": "tsc --noEmit",
+        "test": "echo \"Tests not yet implemented\""
+    },
+    "keywords": [
+        "econos",
+        "cronos",
+        "zkevm",
+        "master-agent",
+        "ai-agent",
+        "escrow"
+    ],
+    "author": "",
+    "license": "MIT",
+    "dependencies": {
+        "@crypto.com/ai-agent-client": "^1.0.2",
+        "@google/genai": "^1.35.0",
+        "@supabase/supabase-js": "^2.49.2",
+        "dotenv": "^16.4.7",
+        "ethers": "^6.13.4",
+        "uuid": "^11.0.4",
+        "winston": "^3.17.0",
+        "zod": "^3.24.1"
+    },
+    "devDependencies": {
+        "@types/node": "^22.10.7",
+        "@types/uuid": "^10.0.0",
+        "nodemon": "^3.1.9",
+        "ts-node": "^10.9.2",
+        "typescript": "^5.7.3"
+    }
+}
