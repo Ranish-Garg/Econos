@@ -4,84 +4,200 @@ The Master Agent coordinates task orchestration, worker selection, escrow manage
 
 ## 🏗 Architecture
 
-The package implements five core responsibilities:
+The package implements **7 core modules**:
 
-1. **Task Formation** - Normalize requests into canonical task objects
-2. **Worker Selection** - Query registry and select optimal workers
-3. **Economic Commitment** - Lock funds in escrow on-chain
-4. **Authorization** - Generate EIP-712 signed authorization
-5. **Lifecycle Monitoring** - Track events and manage state
+| # | Module | Purpose |
+|---|--------|---------|
+| 1 | Task Formation | Validate and store task requests |
+| 2 | Worker Selection | Query registry, select optimal workers |
+| 3 | Escrow | Deposit funds on-chain |
+| 4 | Authorization | EIP-712 signed worker authorization |
+| 5 | Lifecycle | Event monitoring, state management |
+| 6 | **Task Analyzer** ✨ | Gemini-powered single/multi-agent decision |
+| 7 | **Pipeline** ✨ | Multi-step execution and result aggregation |
+
+---
+
+### Execution Flow
+
+```mermaid
+flowchart TB
+    subgraph Input["📥 User Input"]
+        NL["Natural Language Request"]
+        Direct["Direct Task Input"]
+    end
+
+    subgraph AIAnalysis["🧠 AI Task Analyzer"]
+        Discovery["capabilityDiscovery.ts<br/>Fetch worker manifests"]
+        Analyzer["taskAnalyzer.ts<br/>Gemini: Single or Multi?"]
+        Planner["pipelinePlanner.ts<br/>Create ExecutionPlan"]
+    end
+
+    subgraph Decision["⚖️ Decision"]
+        Check{{"Single Agent?"}}
+    end
+
+    subgraph SingleFlow["1️⃣ Single Agent Flow"]
+        TaskMgr["taskManager.ts<br/>Create task"]
+        Selector["selector.ts<br/>Select worker"]
+        Escrow["escrowService.ts<br/>Deposit funds"]
+        Auth["signer.ts<br/>EIP-712 authorization"]
+    end
+
+    subgraph MultiFlow["🔗 Multi-Agent Pipeline"]
+        Executor["pipelineExecutor.ts<br/>Execute steps"]
+        Step1["Step 1: Worker A"]
+        Step2["Step 2: Worker B"]
+        StepN["Step N: Worker C"]
+        Aggregator["resultAggregator.ts<br/>Combine outputs"]
+    end
+
+    subgraph Monitoring["👁️ Lifecycle"]
+        Events["eventListener.ts<br/>Contract events"]
+        State["stateMachine.ts<br/>State transitions"]
+        Monitor["monitor.ts<br/>Auto-refund"]
+    end
+
+    subgraph Output["📤 Result"]
+        Result["Final Result"]
+    end
+
+    %% Flow connections
+    NL --> Discovery
+    Direct --> TaskMgr
+    
+    Discovery --> Analyzer
+    Analyzer --> Planner
+    Planner --> Check
+    
+    Check -->|"Yes"| TaskMgr
+    Check -->|"No"| Executor
+    
+    TaskMgr --> Selector
+    Selector --> Escrow
+    Escrow --> Auth
+    Auth --> Monitor
+    
+    Executor --> Step1
+    Step1 -->|"Output"| Step2
+    Step2 -->|"Output"| StepN
+    StepN --> Aggregator
+    
+    Monitor --> Result
+    Aggregator --> Result
+
+    %% Styling
+    classDef ai fill:#9C27B0,color:white
+    classDef core fill:#2196F3,color:white
+    classDef pipeline fill:#FF9800,color:white
+    
+    class Discovery,Analyzer,Planner ai
+    class TaskMgr,Selector,Escrow,Auth core
+    class Executor,Step1,Step2,StepN,Aggregator pipeline
+```
+
+---
 
 ### Module Dependency Graph
 
 ```mermaid
 flowchart TB
     subgraph Entry["📦 Entry Point"]
-        index["index.ts<br/>Exports all public APIs"]
-    end
-
-    subgraph Config["⚙️ Configuration"]
-        cronos["config/cronos.ts<br/>Network config, provider, wallet"]
-        contracts["config/contracts.ts<br/>ABIs, contract factories"]
-    end
-
-    subgraph Types["📝 Type Definitions"]
-        taskTypes["types/task.ts<br/>Task, TaskStatus"]
-        workerTypes["types/worker.ts<br/>Worker, WorkerManifest"]
-        authTypes["types/authorization.ts<br/>SignedAuthorization"]
-    end
-
-    subgraph TaskFormation["1️⃣ Task Formation"]
-        schema["schema.ts<br/>Zod validation"]
-        taskStore["taskStore.ts<br/>Supabase CRUD"]
-        taskManager["taskManager.ts<br/>Create & manage tasks"]
-    end
-
-    subgraph WorkerSelection["2️⃣ Worker Selection"]
-        indexer["indexer.ts<br/>Query WorkerRegistry"]
-        strategies["strategies.ts<br/>6 selection algorithms"]
-        selector["selector.ts<br/>Filter & select"]
-    end
-
-    subgraph Escrow["3️⃣ Escrow"]
-        contractInterface["contractInterface.ts<br/>Parse on-chain data"]
-        escrowService["escrowService.ts<br/>Deposit, refund"]
-    end
-
-    subgraph Authorization["4️⃣ Authorization"]
-        eip712["eip712.ts<br/>EIP-712 domain"]
-        signer["signer.ts<br/>Sign & verify"]
-    end
-
-    subgraph Lifecycle["5️⃣ Lifecycle"]
-        eventListener["eventListener.ts<br/>Subscribe to events"]
-        stateMachine["stateMachine.ts<br/>State transitions"]
-        monitor["monitor.ts<br/>Auto-refund"]
+        index["index.ts"]
     end
 
     subgraph Orchestrator["🎯 Orchestrator"]
-        masterAgent["masterAgentOrchestrator.ts<br/>Ties all modules"]
+        master["masterAgentOrchestrator.ts"]
     end
 
-    masterAgent --> taskManager
-    masterAgent --> selector
-    masterAgent --> escrowService
-    masterAgent --> signer
-    masterAgent --> monitor
+    subgraph Config["⚙️ Config"]
+        cronos["cronos.ts"]
+        contracts["contracts.ts"]
+    end
 
-    taskManager --> schema
-    taskManager --> taskStore
+    subgraph Types["📝 Types"]
+        taskT["task.ts"]
+        workerT["worker.ts"]
+        authT["authorization.ts"]
+        pipelineT["pipeline.ts"]
+    end
+
+    subgraph TaskFormation["1️⃣ Task Formation"]
+        schema["schema.ts"]
+        store["taskStore.ts"]
+        taskMgr["taskManager.ts"]
+    end
+
+    subgraph WorkerSel["2️⃣ Worker Selection"]
+        indexer["indexer.ts"]
+        strategies["strategies.ts"]
+        selector["selector.ts"]
+    end
+
+    subgraph EscrowMod["3️⃣ Escrow"]
+        contractInt["contractInterface.ts"]
+        escrowSvc["escrowService.ts"]
+    end
+
+    subgraph AuthMod["4️⃣ Authorization"]
+        eip712["eip712.ts"]
+        signer["signer.ts"]
+    end
+
+    subgraph LifecycleMod["5️⃣ Lifecycle"]
+        eventList["eventListener.ts"]
+        stateMach["stateMachine.ts"]
+        monitor["monitor.ts"]
+    end
+
+    subgraph TaskAnalyzer["6️⃣ Task Analyzer"]
+        capDisc["capabilityDiscovery.ts"]
+        taskAnal["taskAnalyzer.ts"]
+        pipePlan["pipelinePlanner.ts"]
+    end
+
+    subgraph Pipeline["7️⃣ Pipeline"]
+        pipeExec["pipelineExecutor.ts"]
+        resultAgg["resultAggregator.ts"]
+    end
+
+    subgraph Utils["🔧 Utils"]
+        logger["logger.ts"]
+        hash["hash.ts"]
+    end
+
+    %% Entry
+    index --> master
+
+    %% Orchestrator dependencies
+    master --> taskMgr
+    master --> selector
+    master --> escrowSvc
+    master --> signer
+    master --> monitor
+    master --> capDisc
+    master --> taskAnal
+    master --> pipePlan
+    master --> pipeExec
+    master --> resultAgg
+
+    %% Module internal deps
+    taskMgr --> schema
+    taskMgr --> store
     selector --> indexer
     selector --> strategies
-    escrowService --> contractInterface
-    escrowService --> contracts
+    escrowSvc --> contractInt
     signer --> eip712
-    monitor --> eventListener
-    monitor --> stateMachine
-    monitor --> taskManager
-    monitor --> escrowService
+    monitor --> eventList
+    monitor --> stateMach
+    pipePlan --> capDisc
+    pipeExec --> escrowSvc
+    pipeExec --> signer
 
-    index --> masterAgent
+    %% Config deps
+    escrowSvc --> contracts
+    indexer --> contracts
+    contracts --> cronos
 ```
 
 
