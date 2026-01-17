@@ -43,15 +43,15 @@ This layout separates chain logic, paid AI services, orchestration, and shared t
 ```bash
 contracts/
 ├── src/
-│   ├── ObolRegistry.sol  # Service discovery, pricing, metadata
-│   └── Reputation.sol    # (Optional) staking & slashing
-├── lib/                  # OpenZeppelin / zkStack deps
-└── hardhat.config.ts
+│   ├── WorkerRegistry.sol  # Service discovery, pricing, metadata
+│   └── NativeEscrow.sol
+│   ├── AgentPaymaster.sol  # Service discovery, pricing, metadata
+
 ```
 
 **Purpose**
 
-- **ObolRegistry.sol** stores worker services and maps `serviceName → endpoint → price → worker address` for trust-minimized discovery.
+- **WorkerRegistry.sol** stores worker services and maps `serviceName → endpoint → price → worker address` for trust-minimized discovery.
 - **Reputation.sol** can optionally implement staking and slashing for workers based on misbehavior or invalid signed responses.
 
 Cronos zkEVM is an Ethereum-equivalent zk-rollup chain, so standard Solidity contracts and tooling (Hardhat, OpenZeppelin) are supported.
