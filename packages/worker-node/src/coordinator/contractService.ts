@@ -1,26 +1,27 @@
 /**
- * Contract Service
- * 
- * Provides a unified interface for interacting with on-chain contracts:
- * - NativeEscrow: Task deposits, work submission, task queries
- * - WorkerRegistry: Worker status checks
- * - AgentPaymaster: Gasless transaction support
+ * Contract Service (Gasless Edition)
+ * * Provides a unified interface for interacting with on-chain contracts on Cronos zkEVM.
+ * Uses zksync-ethers to enable Paymaster (gas sponsorship) support.
  */
 
-import { ethers } from 'ethers';
-import { getProvider, getWorkerWallet, getWorkerAddress, cronosConfig } from '../config/cronos';
+import { Provider, Wallet, Contract, utils } from 'zksync-ethers'; // CRITICAL: Use zksync-ethers
+import { ethers } from 'ethers'; // Keep for standard utilities
+import { getWorkerAddress, cronosConfig } from '../config/cronos';
 import { getContractAddresses } from '../config/contracts';
 import { logger } from '../utils/logger';
 
 /**
  * NativeEscrow ABI (minimal interface for worker operations)
+ * Note: submitWork defined as taking 'bytes' to match Paymaster selector 0xcfdf46c7
  */
 const ESCROW_ABI = [
     'event TaskCreated(bytes32 indexed taskId, address master, address worker, uint256 amount)',
     'event TaskCompleted(bytes32 indexed taskId, string result)',
     'event TaskRefunded(bytes32 indexed taskId)',
     'function tasks(bytes32) view returns (address master, address worker, uint256 amount, uint256 deadline, uint8 status)',
-    'function submitWork(bytes32 _taskId, string calldata _resultHash) external',
+    // We use 'bytes' here to match the Paymaster's hardcoded selector (0xcfdf46c7).
+    // Ensure your Solidity contract uses: function submitWork(bytes32 _taskId, bytes calldata _resultHash)
+    'function submitWork(bytes32 _taskId, bytes calldata _resultHash) external',
 ];
 
 /**
@@ -64,39 +65,43 @@ export interface TaskCreatedEvent {
 
 /**
  * Contract Service
- * 
- * Handles all interactions with on-chain contracts.
+ * * Handles all interactions with on-chain contracts using zkSync-specific features.
  */
 export class ContractService {
-    private provider: ethers.JsonRpcProvider;
-    private escrowContract: ethers.Contract;
-    private escrowContractSigner: ethers.Contract;
-    private registryContract: ethers.Contract;
+    private provider: Provider;
+    private wallet: Wallet;
+    private escrowContract: Contract;
+    private registryContract: Contract;
     private workerAddress: string;
 
     constructor() {
         const addresses = getContractAddresses();
-        this.provider = getProvider();
-        this.workerAddress = getWorkerAddress();
+        
+        // 1. Initialize zkSync Provider
+        this.provider = new Provider(cronosConfig.rpcUrl);
 
-        // Read-only contracts
-        this.escrowContract = new ethers.Contract(
+        // 2. Initialize zkSync Wallet
+        // This is required to sign the EIP-712 transaction for the Paymaster
+        const privateKey = process.env.WORKER_PRIVATE_KEY;
+        if (!privateKey) {
+            throw new Error('WORKER_PRIVATE_KEY is not set in environment variables');
+        }
+        this.wallet = new Wallet(privateKey, this.provider);
+        this.workerAddress = this.wallet.address;
+
+        // 3. Connect Escrow Contract to zkSync Wallet
+        // This allows us to send write transactions
+        this.escrowContract = new Contract(
             addresses.nativeEscrow,
             ESCROW_ABI,
-            this.provider
+            this.wallet 
         );
-        this.registryContract = new ethers.Contract(
+
+        // 4. Connect Registry Contract (Read-only is fine)
+        this.registryContract = new Contract(
             addresses.workerRegistry,
             REGISTRY_ABI,
             this.provider
-        );
-
-        // Signer contract for write operations
-        const wallet = getWorkerWallet();
-        this.escrowContractSigner = new ethers.Contract(
-            addresses.nativeEscrow,
-            ESCROW_ABI,
-            wallet
         );
     }
 
@@ -141,26 +146,43 @@ export class ContractService {
     }
 
     /**
-     * Submit work result to escrow contract
-     * 
-     * Note: In production, this would use the AgentPaymaster for gasless transactions.
-     * For now, we submit directly from the worker wallet.
+     * Submit work result to escrow contract via Paymaster
+     * * This uses EIP-712 with customData to invoke the Paymaster, ensuring the
+     * worker does not pay gas fees.
      */
     async submitWork(taskIdBytes32: string, resultHash: string): Promise<string> {
-        logger.info('Submitting work on-chain', { taskId: taskIdBytes32, resultHash });
+        logger.info('Submitting work on-chain (Gasless)', { taskId: taskIdBytes32, resultHash });
+
+        const addresses = getContractAddresses();
 
         try {
-            const tx = await this.escrowContractSigner.submitWork(taskIdBytes32, resultHash);
+            // 1. Construct Paymaster Params
+            // The "General" flow is standard for sponsorship paymasters
+            const paymasterParams = utils.getPaymasterParams(addresses.paymaster, {
+                type: 'General',
+                innerInput: new Uint8Array(),
+            });
+
+            // 2. Convert result string to bytes to match the Paymaster selector (0xcfdf46c7)
+            const resultBytes = ethers.toUtf8Bytes(resultHash);
+
+            // 3. Send the Gasless Transaction
+            const tx = await this.escrowContract.submitWork(taskIdBytes32, resultBytes, {
+                customData: {
+                    gasPerPubdata: utils.DEFAULT_GAS_PER_PUBDATA_LIMIT,
+                    paymasterParams: paymasterParams,
+                },
+            });
 
             logger.info('submitWork transaction sent', { txHash: tx.hash });
 
-            // Wait for confirmation
-            const receipt = await tx.wait(cronosConfig.blockConfirmations);
+            // 4. Wait for confirmation
+            const receipt = await tx.wait();
 
             logger.info('submitWork confirmed', {
                 txHash: receipt.hash,
                 blockNumber: receipt.blockNumber,
-                gasUsed: receipt.gasUsed.toString(),
+                gasUsed: receipt.gasUsed.toString(), // Paid by Paymaster!
             });
 
             return receipt.hash;
@@ -184,10 +206,10 @@ export class ContractService {
 
     /**
      * Subscribe to TaskCreated events for this worker
-     * 
-     * @returns Cleanup function to unsubscribe
      */
     onTaskCreated(callback: (event: TaskCreatedEvent) => void): () => void {
+        // Create filter for: TaskCreated(indexed taskId, address master, indexed worker, amount)
+        // We filter by the 3rd topic (worker address)
         const filter = this.escrowContract.filters.TaskCreated(null, null, this.workerAddress);
 
         const handler = (
@@ -196,7 +218,7 @@ export class ContractService {
             worker: string,
             amount: bigint
         ) => {
-            // Double-check worker matches (filter should handle this)
+            // Double-check worker matches
             if (worker.toLowerCase() === this.workerAddress.toLowerCase()) {
                 callback({ taskId, master, worker, amount });
             }
@@ -259,10 +281,8 @@ export function getContractService(): ContractService {
  * Convert a task ID string to bytes32
  */
 export function toBytes32(taskId: string): string {
-    // If already bytes32 format, return as-is
     if (taskId.startsWith('0x') && taskId.length === 66) {
         return taskId;
     }
-    // Otherwise, hash the string to get bytes32
     return ethers.keccak256(ethers.toUtf8Bytes(taskId));
 }
