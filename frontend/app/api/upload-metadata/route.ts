@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerSupabaseClient } from '@/lib/supabase'
-import { keccak256, toBytes, pad } from 'viem'
 
 export async function POST(request: NextRequest) {
     try {
@@ -52,10 +51,9 @@ export async function POST(request: NextRequest) {
         console.log('Metadata saved to Supabase:', uuid)
 
         // Convert UUID to bytes32 for contract storage
-        // UUID format: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx (36 chars with dashes)
-        // Remove dashes and convert to bytes, then hash for consistent bytes32
-        const uuidBytes = toBytes(`0x${uuid.replace(/-/g, '')}`)
-        const bytes32 = keccak256(uuidBytes)
+        // UUID without dashes is 32 hex chars (16 bytes) - pad to 32 bytes
+        const uuidHex = uuid.replace(/-/g, '')
+        const bytes32 = `0x${uuidHex.padStart(64, '0')}` as `0x${string}`
 
         return NextResponse.json({
             success: true,

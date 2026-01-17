@@ -14,6 +14,9 @@ contract WorkerRegistry is Ownable {
 
     mapping(address => Worker) public workers;
 
+    // Array to track all registered worker addresses for enumeration
+    address[] public workerAddresses;
+
     // Whitelist the Escrow contract so it can call slash()
     address public escrowContract;
 
@@ -48,6 +51,9 @@ contract WorkerRegistry is Ownable {
             registrationTime: block.timestamp
         });
 
+        // Add to the addresses array for enumeration
+        workerAddresses.push(msg.sender);
+
         emit WorkerRegistered(msg.sender, _metadataPointer);
     }
 
@@ -78,5 +84,50 @@ contract WorkerRegistry is Ownable {
 
     function isWorkerActive(address _worker) external view returns (bool) {
         return workers[_worker].isActive;
+    }
+
+    /**
+     * @notice Get all registered workers' metadata pointers
+     * @return Array of bytes32 metadata pointers (Supabase UUID hashes)
+     */
+    function getAllWorkers() external view returns (bytes32[] memory) {
+        bytes32[] memory pointers = new bytes32[](workerAddresses.length);
+        for (uint256 i = 0; i < workerAddresses.length; i++) {
+            pointers[i] = workers[workerAddresses[i]].metadataPointer;
+        }
+        return pointers;
+    }
+
+    /**
+     * @notice Get the total number of registered workers
+     */
+    function getWorkerCount() external view returns (uint256) {
+        return workerAddresses.length;
+    }
+
+    /**
+     * @notice Get worker details by address
+     */
+    function getWorker(
+        address _worker
+    )
+        external
+        view
+        returns (
+            address walletAddress,
+            bytes32 metadataPointer,
+            uint8 reputation,
+            bool isActive,
+            uint256 registrationTime
+        )
+    {
+        Worker storage w = workers[_worker];
+        return (
+            w.walletAddress,
+            w.metadataPointer,
+            w.reputation,
+            w.isActive,
+            w.registrationTime
+        );
     }
 }
