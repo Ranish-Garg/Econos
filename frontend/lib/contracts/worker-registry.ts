@@ -253,7 +253,7 @@ export const WORKER_REGISTRY_ABI = [
     }
 ] as const
 
-export const WORKER_REGISTRY_ADDRESS = "0x41782A9EC58d7F3BA951E6ce5bf2De36077026E2" as const
+export const WORKER_REGISTRY_ADDRESS = (process.env.NEXT_PUBLIC_WORKER_REGISTRY_ADDRESS || "0x41782A9EC58d7F3BA951E6ce5bf2De36077026E2") as `0x${string}`
 
 export type WorkerMetadata = {
     name: string

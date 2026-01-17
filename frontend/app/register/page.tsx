@@ -330,7 +330,7 @@ app.post('/v1/inference',
                                                         )}
                                                         {hash && (
                                                             <a
-                                                                href={`https://explorer.zkevm.cronos.org/tx/${hash}`}
+                                                                href={`https://explorer.zkevm.cronos.org/testnet/tx/${hash}`}
                                                                 target="_blank"
                                                                 rel="noopener noreferrer"
                                                                 className="text-xs text-blue-400 hover:text-blue-300 flex items-center gap-1 mt-1"
