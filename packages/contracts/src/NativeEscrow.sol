@@ -23,7 +23,7 @@ contract NativeEscrow is ReentrancyGuard {
     mapping(bytes32 => Task) public tasks;
 
     event TaskCreated(bytes32 indexed taskId, address master, address worker, uint256 amount);
-    event TaskCompleted(bytes32 indexed taskId, string result);
+    event TaskCompleted(bytes32 indexed taskId, bytes result);
     event TaskRefunded(bytes32 indexed taskId);
     event TaskDisputed(bytes32 indexed taskId);
 
@@ -54,7 +54,7 @@ contract NativeEscrow is ReentrancyGuard {
      * @notice Worker submits result. 
      * IMPORTANT: This is the target for Gasless Paymaster calls.
      */
-    function submitWork(bytes32 _taskId, string calldata _resultHash) external nonReentrant {
+    function submitWork(bytes32 _taskId, bytes calldata _result) external nonReentrant {
         Task storage t = tasks[_taskId];
         
         require(t.status == TaskStatus.OPEN, "Task not open");
@@ -67,7 +67,7 @@ contract NativeEscrow is ReentrancyGuard {
         (bool success, ) = payable(t.worker).call{value: t.amount}("");
         require(success, "Transfer failed");
 
-        emit TaskCompleted(_taskId, _resultHash);
+        emit TaskCompleted(_taskId, _result);
     }
 
     /**
