@@ -33,7 +33,7 @@ export function ConnectWalletButton() {
         return (
             <button
                 type="button"
-                className="px-8 py-3.5 rounded-xl bg-gradient-to-r from-zinc-800 to-zinc-900 border border-zinc-700/50 text-zinc-100 text-base font-semibold opacity-50"
+                className="h-11 px-6 rounded-xl bg-linear-to-r from-zinc-800 to-zinc-900 border border-zinc-700/50 text-zinc-100 text-sm font-semibold opacity-50"
                 disabled
             >
                 Connect Wallet
@@ -74,7 +74,7 @@ export function ConnectWalletButton() {
                 <button
                     onClick={() => setIsDropdownOpen(!isDropdownOpen)}
                     type="button"
-                    className="flex items-center gap-2 px-6 py-3 rounded-xl bg-gradient-to-r from-zinc-800 to-zinc-900 border border-zinc-700/50 text-zinc-100 text-base font-semibold hover:border-zinc-600 transition-all duration-200 shadow-lg shadow-zinc-950/50"
+                    className="h-11 flex items-center gap-2 px-4 rounded-xl bg-linear-to-r from-zinc-800 to-zinc-900 border border-zinc-700/50 text-zinc-100 text-sm font-semibold hover:border-zinc-600 transition-all duration-200 shadow-lg shadow-zinc-950/50"
                 >
                     <span className="w-2 h-2 rounded-full bg-green-500"></span>
                     {address.slice(0, 6)}...{address.slice(-4)}
@@ -109,11 +109,9 @@ export function ConnectWalletButton() {
                 onClick={handleConnect}
                 disabled={isPending}
                 type="button"
-                className="group relative px-8 py-3.5 rounded-xl bg-gradient-to-r from-zinc-800 to-zinc-900 border border-zinc-700/50 text-zinc-100 text-base font-semibold hover:border-zinc-600 transition-all duration-200 shadow-lg shadow-zinc-950/50 hover:shadow-zinc-900/50 disabled:opacity-50"
+                className="h-11 px-6 rounded-xl bg-linear-to-r from-zinc-800 to-zinc-900 border border-zinc-700/50 text-zinc-100 text-sm font-semibold hover:border-zinc-600 transition-all duration-200 shadow-lg shadow-zinc-950/50 hover:shadow-zinc-900/50 disabled:opacity-50"
             >
-                <span className="relative z-10">
-                    {isPending ? 'Connecting...' : 'Connect Wallet'}
-                </span>
+                {isPending ? 'Connecting...' : 'Connect Wallet'}
             </button>
             {error && (
                 <p className="text-red-400 text-xs max-w-xs text-right">{error.message}</p>

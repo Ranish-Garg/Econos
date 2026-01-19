@@ -39,6 +39,27 @@ export default function RegisterPage() {
         setFormData(prev => ({ ...prev, [key]: value }))
     }
 
+    // Validation for each step
+    const isStepValid = (step: number): boolean => {
+        switch (step) {
+            case 1:
+                return formData.name.trim() !== "" &&
+                    formData.description.trim() !== "" &&
+                    formData.category !== ""
+            case 2:
+                // Only endpoint is required, capabilities (JSON schema) is optional
+                return formData.endpoint.trim() !== ""
+            case 3:
+                return formData.price.trim() !== "" && parseFloat(formData.price) > 0
+            case 4:
+                return isConnected
+            default:
+                return true
+        }
+    }
+
+    const canProceedToNext = isStepValid(currentStep)
+
     const handleRegister = async () => {
         if (!isConnected || !address) {
             setErrorMessage("Please connect your wallet first")
@@ -109,38 +130,44 @@ export default function RegisterPage() {
 
                     {/* Progress Steps */}
                     <div className="mb-12">
-                        <div className="flex items-center justify-between max-w-2xl mx-auto">
-                            {steps.map((step, idx) => {
-                                const Icon = step.icon
-                                const isComplete = currentStep > step.id
-                                const isCurrent = currentStep === step.id
-                                return (
-                                    <div key={step.id} className="flex items-center flex-1">
-                                        <div className={`flex flex-col items-center ${idx < steps.length - 1 ? "flex-1" : ""}`}>
-                                            <div
-                                                className={`w-12 h-12 rounded-full flex items-center justify-center border-2 transition-all ${isComplete
-                                                    ? "bg-zinc-100 border-zinc-100"
-                                                    : isCurrent
-                                                        ? "bg-zinc-800 border-zinc-600"
-                                                        : "bg-zinc-900 border-zinc-800"
-                                                    }`}
-                                            >
-                                                {isComplete ? (
-                                                    <Check className="w-6 h-6 text-zinc-900" />
-                                                ) : (
-                                                    <Icon className={`w-5 h-5 ${isCurrent ? "text-zinc-300" : "text-zinc-600"}`} />
-                                                )}
+                        <div className="flex justify-center">
+                            <div className="flex items-start">
+                                {steps.map((step, idx) => {
+                                    const Icon = step.icon
+                                    const isComplete = currentStep > step.id
+                                    const isCurrent = currentStep === step.id
+                                    return (
+                                        <div key={step.id} className="flex items-start">
+                                            {/* Step container with icon and label */}
+                                            <div className="flex flex-col items-center">
+                                                <div
+                                                    className={`w-12 h-12 rounded-full flex items-center justify-center border-2 transition-all ${isComplete
+                                                        ? "bg-zinc-100 border-zinc-100"
+                                                        : isCurrent
+                                                            ? "bg-zinc-800 border-zinc-600"
+                                                            : "bg-zinc-900 border-zinc-800"
+                                                        }`}
+                                                >
+                                                    {isComplete ? (
+                                                        <Check className="w-6 h-6 text-zinc-900" />
+                                                    ) : (
+                                                        <Icon className={`w-5 h-5 ${isCurrent ? "text-zinc-300" : "text-zinc-600"}`} />
+                                                    )}
+                                                </div>
+                                                <span className={`text-xs mt-2 text-center whitespace-nowrap ${isCurrent ? "text-zinc-300" : "text-zinc-600"}`}>
+                                                    {step.name}
+                                                </span>
                                             </div>
-                                            <span className={`text-xs mt-2 ${isCurrent ? "text-zinc-300" : "text-zinc-600"}`}>
-                                                {step.name}
-                                            </span>
+                                            {/* Connecting line - vertically centered with icon (h-12 = 48px, so top offset is 24px - half line height) */}
+                                            {idx < steps.length - 1 && (
+                                                <div className="flex items-center h-12">
+                                                    <div className={`w-16 md:w-24 h-0.5 mx-3 ${isComplete ? "bg-zinc-100" : "bg-zinc-800"}`} />
+                                                </div>
+                                            )}
                                         </div>
-                                        {idx < steps.length - 1 && (
-                                            <div className={`flex-1 h-0.5 mx-2 ${isComplete ? "bg-zinc-100" : "bg-zinc-800"}`} />
-                                        )}
-                                    </div>
-                                )
-                            })}
+                                    )
+                                })}
+                            </div>
                         </div>
                     </div>
 
@@ -150,31 +177,43 @@ export default function RegisterPage() {
                         {currentStep === 1 && (
                             <div className="space-y-6">
                                 <div>
-                                    <label className="block text-sm font-medium text-zinc-300 mb-2">Agent Name</label>
+                                    <label className="block text-sm font-medium text-zinc-300 mb-2">
+                                        Agent Name <span className="text-red-400">*</span>
+                                    </label>
                                     <input
                                         type="text"
                                         value={formData.name}
                                         onChange={(e) => updateForm("name", e.target.value)}
                                         placeholder="e.g., Risk Scoring Oracle"
-                                        className="w-full px-4 py-3 rounded-xl bg-zinc-950 border border-zinc-800 text-zinc-100 placeholder-zinc-600 focus:outline-none focus:border-zinc-700"
+                                        className={`w-full px-4 py-3 rounded-xl bg-zinc-950 border text-zinc-100 placeholder-zinc-600 focus:outline-none focus:border-zinc-700 ${formData.name.trim() === "" ? "border-zinc-800" : "border-zinc-700"}`}
                                     />
+                                    {formData.name.trim() === "" && (
+                                        <p className="text-xs text-zinc-500 mt-1">Required</p>
+                                    )}
                                 </div>
                                 <div>
-                                    <label className="block text-sm font-medium text-zinc-300 mb-2">Description</label>
+                                    <label className="block text-sm font-medium text-zinc-300 mb-2">
+                                        Description <span className="text-red-400">*</span>
+                                    </label>
                                     <textarea
                                         value={formData.description}
                                         onChange={(e) => updateForm("description", e.target.value)}
                                         placeholder="Describe what your agent does..."
                                         rows={4}
-                                        className="w-full px-4 py-3 rounded-xl bg-zinc-950 border border-zinc-800 text-zinc-100 placeholder-zinc-600 focus:outline-none focus:border-zinc-700"
+                                        className={`w-full px-4 py-3 rounded-xl bg-zinc-950 border text-zinc-100 placeholder-zinc-600 focus:outline-none focus:border-zinc-700 ${formData.description.trim() === "" ? "border-zinc-800" : "border-zinc-700"}`}
                                     />
+                                    {formData.description.trim() === "" && (
+                                        <p className="text-xs text-zinc-500 mt-1">Required</p>
+                                    )}
                                 </div>
                                 <div>
-                                    <label className="block text-sm font-medium text-zinc-300 mb-2">Category</label>
+                                    <label className="block text-sm font-medium text-zinc-300 mb-2">
+                                        Category <span className="text-red-400">*</span>
+                                    </label>
                                     <select
                                         value={formData.category}
                                         onChange={(e) => updateForm("category", e.target.value)}
-                                        className="w-full px-4 py-3 rounded-xl bg-zinc-950 border border-zinc-800 text-zinc-100 focus:outline-none focus:border-zinc-700"
+                                        className={`w-full px-4 py-3 rounded-xl bg-zinc-950 border text-zinc-100 focus:outline-none focus:border-zinc-700 ${formData.category === "" ? "border-zinc-800" : "border-zinc-700"}`}
                                     >
                                         <option value="">Select a category</option>
                                         <option value="risk">Risk Analysis</option>
@@ -183,6 +222,9 @@ export default function RegisterPage() {
                                         <option value="infrastructure">Infrastructure</option>
                                         <option value="security">Security</option>
                                     </select>
+                                    {formData.category === "" && (
+                                        <p className="text-xs text-zinc-500 mt-1">Required</p>
+                                    )}
                                 </div>
                             </div>
                         )}
@@ -192,7 +234,7 @@ export default function RegisterPage() {
                             <div className="space-y-6">
                                 <div>
                                     <label className="block text-sm font-medium text-zinc-300 mb-2">
-                                        API Endpoint URL
+                                        API Endpoint URL <span className="text-red-400">*</span>
                                         <span className="block text-xs text-zinc-500 font-normal mt-1">
                                             Master agents will call this URL to use your service
                                         </span>
@@ -202,8 +244,11 @@ export default function RegisterPage() {
                                         value={formData.endpoint}
                                         onChange={(e) => updateForm("endpoint", e.target.value)}
                                         placeholder="https://your-api.com/inference"
-                                        className="w-full px-4 py-3 rounded-xl bg-zinc-950 border border-zinc-800 text-zinc-100 placeholder-zinc-600 focus:outline-none focus:border-zinc-700"
+                                        className={`w-full px-4 py-3 rounded-xl bg-zinc-950 border text-zinc-100 placeholder-zinc-600 focus:outline-none focus:border-zinc-700 ${formData.endpoint.trim() === "" ? "border-zinc-800" : "border-zinc-700"}`}
                                     />
+                                    {formData.endpoint.trim() === "" && (
+                                        <p className="text-xs text-zinc-500 mt-1">Required</p>
+                                    )}
                                 </div>
                                 <div>
                                     <label className="block text-sm font-medium text-zinc-300 mb-2">Capabilities (JSON Schema)</label>
@@ -227,15 +272,21 @@ export default function RegisterPage() {
                         {currentStep === 3 && (
                             <div className="space-y-6">
                                 <div>
-                                    <label className="block text-sm font-medium text-zinc-300 mb-2">Price per Call (zkCRO)</label>
+                                    <label className="block text-sm font-medium text-zinc-300 mb-2">
+                                        Price per Call (zkCRO) <span className="text-red-400">*</span>
+                                    </label>
                                     <input
                                         type="number"
                                         step="0.01"
+                                        min="0.01"
                                         value={formData.price}
                                         onChange={(e) => updateForm("price", e.target.value)}
                                         placeholder="0.05"
-                                        className="w-full px-4 py-3 rounded-xl bg-zinc-950 border border-zinc-800 text-zinc-100 placeholder-zinc-600 focus:outline-none focus:border-zinc-700"
+                                        className={`w-full px-4 py-3 rounded-xl bg-zinc-950 border text-zinc-100 placeholder-zinc-600 focus:outline-none focus:border-zinc-700 ${formData.price.trim() === "" || parseFloat(formData.price) <= 0 ? "border-zinc-800" : "border-zinc-700"}`}
                                     />
+                                    {(formData.price.trim() === "" || parseFloat(formData.price) <= 0) && (
+                                        <p className="text-xs text-zinc-500 mt-1">Required - must be greater than 0</p>
+                                    )}
                                 </div>
                                 <div className="p-6 rounded-xl bg-zinc-950/50 border border-zinc-800/30">
                                     <h4 className="text-sm font-semibold text-zinc-300 mb-3">Code Example: Wrap Your API</h4>
@@ -362,14 +413,15 @@ app.post('/v1/inference',
                         <button
                             onClick={() => setCurrentStep(Math.max(1, currentStep - 1))}
                             disabled={currentStep === 1}
-                            className="px-6 py-3 rounded-xl bg-zinc-900 text-zinc-400 border border-zinc-800 disabled:opacity-50 disabled:cursor-not-allowed hover:border-zinc-700 transition-colors"
+                            className="h-11 px-6 rounded-xl bg-zinc-900 text-zinc-400 border border-zinc-800 disabled:opacity-50 disabled:cursor-not-allowed hover:border-zinc-700 transition-colors"
                         >
                             Previous
                         </button>
                         {currentStep < 4 && (
                             <button
                                 onClick={() => setCurrentStep(Math.min(4, currentStep + 1))}
-                                className="px-6 py-3 rounded-xl bg-zinc-100 text-zinc-900 font-medium hover:bg-zinc-200 transition-colors flex items-center gap-2"
+                                disabled={!canProceedToNext}
+                                className="h-11 px-6 rounded-xl bg-zinc-100 text-zinc-900 font-medium hover:bg-zinc-200 transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-zinc-100"
                             >
                                 Next <ChevronRight className="w-4 h-4" />
                             </button>
