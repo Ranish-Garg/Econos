@@ -17,8 +17,8 @@ export interface ContractAddresses {
  * Get contract addresses from environment variables
  */
 export function getContractAddresses(): ContractAddresses {
-    const nativeEscrow = process.env.ESCROW_CONTRACT_ADDRESS;
-    const workerRegistry = process.env.REGISTRY_CONTRACT_ADDRESS;
+    const nativeEscrow = process.env.ESCROW_ADDRESS;
+    const workerRegistry = process.env.REGISTRY_ADDRESS;
     const paymaster = process.env.PAYMASTER_ADDRESS;
 
     if (!nativeEscrow) {

@@ -4,8 +4,6 @@ import {
     getEIP712Domain,
     EIP712_TYPE_DEFINITIONS,
     createAuthorizationMessage,
-    TaskAuthorizationMessage,
-    TypedDataDomain,
 } from './eip712';
 import { AuthorizationPayload, SignedAuthorization, NonceRecord } from '../types/authorization';
 import { toBytes32, getCurrentTimestamp } from '../utils/hash';
@@ -13,8 +11,7 @@ import { logger, logTaskEvent } from '../utils/logger';
 
 /**
  * Authorization Signer
- * 
- * Generates and signs EIP-712 authorization payloads that authorize
+ * * Generates and signs EIP-712 authorization payloads that authorize
  * workers to execute tasks on behalf of the master agent.
  */
 export class AuthorizationSigner {
@@ -49,10 +46,6 @@ export class AuthorizationSigner {
 
     /**
      * Generate an authorization payload
-     * 
-     * @param taskId - Task ID (will be converted to bytes32)
-     * @param workerAddress - The worker being authorized
-     * @param validitySeconds - How long the authorization is valid (default: 1 hour)
      */
     generateAuthorization(
         taskId: string,
@@ -72,13 +65,63 @@ export class AuthorizationSigner {
     }
 
     /**
-     * Sign an authorization payload using EIP-712
+     * Create a specific authorization with explicit parameters (Used by CLI/Demo)
+     * This allows manual control over nonce and expiration.
+     */
+    async createAuthorization(
+        taskId: string,
+        workerAddress: string,
+        expiresAt: number,
+        nonce: number,
+        taskPayload: { serviceName: string; params: unknown }
+    ): Promise<{ signature: string; message: any; payload: any }> {
+        const wallet = getMasterWallet();
+        const domain = getEIP712Domain();
+
+        // 1. Construct the EIP-712 Message
+        // Note: We cast to BigInt here because EIP-712 signing expects it for uint256
+        const message = {
+            taskId: toBytes32(taskId),
+            worker: workerAddress,
+            expiresAt: BigInt(expiresAt),
+            nonce: BigInt(nonce)
+        };
+
+        try {
+            // 2. Sign the data
+            const signature = await wallet.signTypedData(
+                domain,
+                EIP712_TYPE_DEFINITIONS,
+                message
+            );
+
+            // 3. Record nonce usage locally
+            this.recordNonce(taskId, nonce);
+
+            logger.info('Created specific authorization', { 
+                taskId, 
+                worker: workerAddress,
+                nonce 
+            });
+
+            return {
+                signature,
+                message,
+                payload: taskPayload
+            };
+        } catch (error) {
+            logger.error('Failed to create specific authorization', { taskId, error });
+            throw error;
+        }
+    }
+
+    /**
+     * Sign an existing authorization payload
      */
     async signAuthorization(payload: AuthorizationPayload): Promise<SignedAuthorization> {
         const wallet = getMasterWallet();
         const domain = getEIP712Domain();
 
-        // Create the message for signing
         const message = createAuthorizationMessage(
             payload.taskId,
             payload.worker,
@@ -87,14 +130,12 @@ export class AuthorizationSigner {
         );
 
         try {
-            // Sign using EIP-712 typed data
             const signature = await wallet.signTypedData(
                 domain,
                 EIP712_TYPE_DEFINITIONS,
                 message
             );
 
-            // Record the nonce as used
             this.recordNonce(payload.taskId, payload.nonce);
 
             logTaskEvent(payload.taskId, 'authorization_signed', 'info', {
@@ -132,87 +173,9 @@ export class AuthorizationSigner {
     }
 
     /**
-     * Verify a signature is valid (for testing/debugging)
-     */
-    async verifySignature(signedAuth: SignedAuthorization): Promise<boolean> {
-        try {
-            const message = createAuthorizationMessage(
-                signedAuth.payload.taskId,
-                signedAuth.payload.worker,
-                signedAuth.payload.expiresAt,
-                signedAuth.payload.nonce
-            );
-
-            const recoveredAddress = ethers.verifyTypedData(
-                signedAuth.domain,
-                signedAuth.types,
-                message,
-                signedAuth.signature
-            );
-
-            return recoveredAddress.toLowerCase() === signedAuth.signer.toLowerCase();
-        } catch (error) {
-            logger.error('Signature verification failed', { error });
-            return false;
-        }
-    }
-
-    /**
-     * Check if an authorization has expired
-     */
-    isExpired(signedAuth: SignedAuthorization): boolean {
-        return getCurrentTimestamp() > signedAuth.payload.expiresAt;
-    }
-
-    /**
-     * Serialize authorization for transmission
-     */
-    serializeAuthorization(signedAuth: SignedAuthorization): string {
-        return JSON.stringify({
-            payload: {
-                taskId: signedAuth.payload.taskId,
-                worker: signedAuth.payload.worker,
-                expiresAt: signedAuth.payload.expiresAt,
-                nonce: signedAuth.payload.nonce,
-            },
-            signature: signedAuth.signature,
-            signer: signedAuth.signer,
-            domain: signedAuth.domain,
-            types: signedAuth.types,
-        });
-    }
-
-    /**
-     * Deserialize authorization from transmission
-     */
-    deserializeAuthorization(serialized: string): SignedAuthorization {
-        const parsed = JSON.parse(serialized);
-        return {
-            payload: parsed.payload,
-            signature: parsed.signature,
-            signer: parsed.signer,
-            domain: parsed.domain,
-            types: parsed.types,
-        };
-    }
-
-    /**
      * Get master agent address
      */
     getMasterAddress(): string {
         return getMasterAddress();
-    }
-
-    /**
-     * Clear used nonces (for cleanup)
-     */
-    clearOldNonces(maxAgeSeconds: number = 86400): void {
-        const cutoff = getCurrentTimestamp() - maxAgeSeconds;
-
-        for (const [key, record] of this.usedNonces.entries()) {
-            if (record.usedAt < cutoff) {
-                this.usedNonces.delete(key);
-            }
-        }
     }
 }

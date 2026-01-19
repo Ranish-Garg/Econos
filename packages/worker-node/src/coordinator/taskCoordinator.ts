@@ -15,13 +15,11 @@ import { getTaskStateManager, TaskStateManager, TaskState } from './taskStateMan
 import { computeResultHash, prepareResult } from './resultCanonicalizer';
 import { getWorkerAddress } from '../config/cronos';
 import { logger } from '../utils/logger';
+import { resultStore } from '../index'; 
+import { ethers } from 'ethers';
 
 // Import agent factory functions
-import { createImageGenerationAgent } from '../services/image-generation/agent';
-import { createSummaryGenerationAgent } from '../services/summary-generation/agent';
-import { createResearcherAgent } from '../services/researcher/agent';
-import { createWriterAgent } from '../services/writer/agent';
-import { createMarketResearchAgent } from '../services/market-research/agent';
+
 import { getAgent, Agent } from '../services/agentFactory';
 
 
@@ -230,10 +228,18 @@ export class TaskCoordinator {
             // Execute agent
             const result = await agent.execute(params);
 
-            logger.info('Task execution completed', { taskId });
+            // 2. SAVE RESULT (Transient Storage)
+            // We store the full data so the Master Agent can fetch it later
+            logger.info(`💾 Saving result for ${taskId} to memory store...`);
+            resultStore.set(taskId, result);
 
-            // Prepare and submit result
-            await this.submitResult(taskId, result);
+            // 3. PREPARE HASH (Proof of Work)
+            // If result is object, stringify it first to ensure consistent hashing
+            const resultString = typeof result === 'string' ? result : JSON.stringify(result);
+            const resultHash = ethers.keccak256(ethers.toUtf8Bytes(resultString));
+
+            // 4. SUBMIT HASH TO BLOCKCHAIN
+            await this.submitResult(taskId, resultHash);
 
         } catch (error) {
             logger.error('Task execution failed', { taskId, error });
@@ -244,22 +250,14 @@ export class TaskCoordinator {
     /**
      * Submit result to chain
      */
-    private async submitResult(taskId: string, result: unknown): Promise<void> {
+    private async submitResult(taskId: string, resultHash: string): Promise<void> {
         try {
-            // Canonicalize and hash result
-            const prepared = prepareResult(result);
+            logger.info('Submitting result hash on-chain', { taskId, resultHash });
 
-            logger.info('Submitting result on-chain', {
-                taskId,
-                resultHash: prepared.hash,
-            });
+            // Submit to contract (Gasless Paymaster handles the cost)
+            const txHash = await this.contractService.submitWork(taskId, resultHash);
 
-            // Submit to contract
-            const txHash = await this.contractService.submitWork(taskId, prepared.hash);
-
-            // Mark as submitted
-            this.stateManager.markSubmitted(taskId, prepared.hash, txHash);
-
+            this.stateManager.markSubmitted(taskId, resultHash, txHash);
             logger.info('Result submitted', { taskId, txHash });
 
         } catch (error) {

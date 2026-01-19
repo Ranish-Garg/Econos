@@ -171,41 +171,132 @@ export class ContractService {
         }
     }
 
-    onTaskCreated(callback: (event: TaskCreatedEvent) => void): () => void {
-        const filter = this.escrowContract.filters.TaskCreated(null, null, this.workerAddress);
+    // In packages/worker-node/src/coordinator/contractService.ts
 
-        const handler = (taskId: string, master: string, worker: string, amount: bigint) => {
-            if (worker.toLowerCase() === this.workerAddress.toLowerCase()) {
-                callback({ taskId, master, worker, amount });
+    onTaskCreated(callback: (event: TaskCreatedEvent) => void): () => void {
+        let isRunning = true;
+        let lastBlockChecked = 0;
+
+        const pollEvents = async () => {
+            if (!isRunning) return;
+
+            try {
+                // 1. Get current block number
+                const currentBlock = await this.provider.getBlockNumber();
+                
+                // Initialize start block on first run
+                if (lastBlockChecked === 0) {
+                    lastBlockChecked = currentBlock - 5; // Look back 5 blocks to be safe
+                }
+
+                // If we are up to date, wait and try again
+                if (lastBlockChecked >= currentBlock) {
+                    setTimeout(pollEvents, 3000);
+                    return;
+                }
+
+                // 2. Query logs from lastChecked+1 to currentBlock
+                // This is a standard HTTP request, not a fragile WebSocket filter
+                const filter = this.escrowContract.filters.TaskCreated();
+                const events = await this.escrowContract.queryFilter(
+                    filter, 
+                    lastBlockChecked + 1, 
+                    currentBlock
+                );
+
+                // 3. Process events
+                for (const event of events) {
+                    if (event instanceof ethers.EventLog) {
+                        const [taskId, master, worker, amount] = event.args;
+                        
+                        // Client-side filtering: Is this for me?
+                        if (worker.toLowerCase() === this.workerAddress.toLowerCase()) {
+                            logger.info('👀 Polling found new task!', { taskId });
+                            callback({ 
+                                taskId, 
+                                master, 
+                                worker, 
+                                amount: BigInt(amount) 
+                            });
+                        }
+                    }
+                }
+
+                // Update checkpoint
+                lastBlockChecked = currentBlock;
+
+            } catch (error) {
+                logger.warn('Polling error (retrying in 3s)...', { error: (error as Error).message });
             }
+
+            // Schedule next poll
+            setTimeout(pollEvents, 3000);
         };
 
-        this.escrowContract.on(filter, handler);
-        logger.info('Subscribed to TaskCreated events', { worker: this.workerAddress });
+        // Start the loop
+        logger.info('Started Task Polling (Robust Mode)', { worker: this.workerAddress });
+        pollEvents();
 
+        // Return unsubscribe function
         return () => {
-            this.escrowContract.off(filter, handler);
+            isRunning = false;
+            logger.info('Stopped Task Polling');
         };
     }
 
+    /**
+     * Listen for TaskCompleted events (Robust Polling Version)
+     */
     onTaskCompleted(callback: (taskId: string, resultHash: string) => void): () => void {
-        // Listener must interpret the 'bytes' result back to string
-        const handler = (taskId: string, resultBytes: string) => {
+        let isRunning = true;
+        let lastBlockChecked = 0;
+
+        const pollCompletion = async () => {
+            if (!isRunning) return;
+
             try {
-                // Try to decode bytes back to utf8 string
-                const resultStr = ethers.toUtf8String(resultBytes);
-                callback(taskId, resultStr);
-            } catch (e) {
-                // Fallback if it's raw hex
-                callback(taskId, resultBytes);
+                const currentBlock = await this.provider.getBlockNumber();
+                
+                if (lastBlockChecked === 0) {
+                    lastBlockChecked = currentBlock - 100; // Check recent history
+                }
+
+                if (lastBlockChecked >= currentBlock) {
+                    setTimeout(pollCompletion, 3000);
+                    return;
+                }
+
+                // Query logs safely (No Filter ID to crash)
+                const filter = this.escrowContract.filters.TaskCompleted();
+                const events = await this.escrowContract.queryFilter(
+                    filter, 
+                    lastBlockChecked + 1, 
+                    currentBlock
+                );
+
+                for (const event of events) {
+                    if (event instanceof ethers.EventLog) {
+                        const [taskId, resultHash] = event.args;
+                        // We pass every completion to the coordinator
+                        // The coordinator decides if it cares about this taskId
+                        callback(taskId, resultHash);
+                    }
+                }
+
+                lastBlockChecked = currentBlock;
+
+            } catch (error) {
+                // Squelch errors so the node doesn't crash
+                // logger.warn('Completion polling error (retrying)...');
             }
+
+            setTimeout(pollCompletion, 3000);
         };
 
-        this.escrowContract.on('TaskCompleted', handler);
+        // Start the loop
+        pollCompletion();
 
-        return () => {
-            this.escrowContract.off('TaskCompleted', handler);
-        };
+        return () => { isRunning = false; };
     }
 
     getEscrowAddress(): string {

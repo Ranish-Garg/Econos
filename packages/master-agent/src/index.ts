@@ -7,6 +7,11 @@
 
 import 'dotenv/config';
 
+//contract config
+
+export {getNativeEscrowContractWithSigner,
+    getNativeEscrowContract
+} from './config/contracts'
 // Main Orchestrator
 export {
     MasterAgentOrchestrator,

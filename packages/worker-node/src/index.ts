@@ -8,7 +8,7 @@ import { getAgent } from './services/agentFactory';
 
 // Import coordinator module
 import { getTaskCoordinator, registerAuthorization, TaskAuthorization } from './coordinator';
-
+export const resultStore = new Map<string, any>();
 const app = express();
 app.use(express.json({ limit: '1mb' }));
 
@@ -163,6 +163,21 @@ app.post('/inference/:serviceId', async (req: Request, res: Response) => {
             message: String(error) 
         });
     }
+});
+
+app.get('/result/:taskId', (req, res) => {
+    const { taskId } = req.params;
+    
+    if (resultStore.has(taskId)) {
+        const data = resultStore.get(taskId);
+        return res.status(200).json({ 
+            success: true, 
+            taskId, 
+            data 
+        });
+    }
+    
+    return res.status(404).json({ error: "Result not found or expired" });
 });
 
 /**
