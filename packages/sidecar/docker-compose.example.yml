@@ -1,0 +1,29 @@
+
+version: '3.8'
+
+services:
+  # 1. THE USER'S EXISTING WEB2 API
+  # They replace this with their own image
+  my-web2-api:
+    image: my-existing-api:latest 
+    ports:
+      - "8080:8080"
+    environment:
+      - PORT=8080
+
+  # 2. THE ECONOS SIDECAR (Transforms Web2 -> Web3)
+  econos-worker:
+    build: . # In production, this would be: image: econos/sidecar:latest
+    ports:
+      - "3001:3001"
+    environment:
+      # CONFIGURATION
+      - WORKER_PRIVATE_KEY=0xYOUR_PRIVATE_KEY_HERE
+      - ESCROW_ADDRESS=0xYOUR_CONTRACT_ADDRESS
+      - RPC_URL=https://evm-t3.cronos.org/
+      
+      # CONNECT TO THE WEB2 API
+      # We use the service name 'my-web2-api' as the hostname
+      - INTERNAL_API_URL=http://my-web2-api:8080/execute-task
+    depends_on:
+      - my-web2-api
