@@ -30,6 +30,32 @@ export const cronoszkEVMTestnet: Chain = {
     testnet: true,
 }
 
+// Cronos EVM Testnet - Chain ID 338
+export const cronosEVMTestnet: Chain = {
+    id: 338,
+    name: 'Cronos Testnet',
+    nativeCurrency: {
+        decimals: 18,
+        name: 'TCRO',
+        symbol: 'TCRO',
+    },
+    rpcUrls: {
+        default: {
+            http: ['https://evm-t3.cronos.org'],
+        },
+        public: {
+            http: ['https://evm-t3.cronos.org'],
+        },
+    },
+    blockExplorers: {
+        default: {
+            name: 'Cronos Testnet Explorer',
+            url: 'https://explorer.cronos.org/testnet'
+        },
+    },
+    testnet: true,
+}
+
 // WalletConnect Project ID - Get one at https://cloud.walletconnect.com
 const projectId = process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID || 'YOUR_PROJECT_ID'
 
@@ -48,9 +74,10 @@ function getConnectors() {
 }
 
 export const config = createConfig({
-    chains: [cronoszkEVMTestnet],
+    chains: [cronosEVMTestnet, cronoszkEVMTestnet],
     connectors: getConnectors(),
     transports: {
+        [cronosEVMTestnet.id]: http('https://evm-t3.cronos.org'),
         [cronoszkEVMTestnet.id]: http('https://testnet.zkevm.cronos.org'),
     },
     ssr: true, // Enable SSR mode for wagmi
@@ -61,3 +88,4 @@ declare module 'wagmi' {
         config: typeof config
     }
 }
+

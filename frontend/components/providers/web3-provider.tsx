@@ -17,9 +17,10 @@ export function Web3Provider({ children }: { children: React.ReactNode }) {
         setMounted(true)
     }, [])
 
-    // During SSR and initial client render, don't render the wallet providers
+    // During SSR and initial client render, don't render anything
+    // This prevents wagmi hooks from being called outside of WagmiProvider
     if (!mounted) {
-        return <>{children}</>
+        return null
     }
 
     return (

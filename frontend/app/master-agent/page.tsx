@@ -121,7 +121,7 @@ export default function MasterAgentPage() {
                                     className={`flex gap-4 ${message.role === "user" ? "justify-end" : "justify-start"}`}
                                 >
                                     {message.role === "assistant" && (
-                                        <div className="w-8 h-8 rounded-lg bg-zinc-800 border border-zinc-700 flex items-center justify-center flex-shrink-0">
+                                        <div className="w-8 h-8 rounded-lg bg-zinc-800 border border-zinc-700 flex items-center justify-center shrink-0">
                                             <Bot className="w-4 h-4 text-zinc-400" />
                                         </div>
                                     )}
@@ -136,7 +136,7 @@ export default function MasterAgentPage() {
                                         </p>
                                     </div>
                                     {message.role === "user" && (
-                                        <div className="w-8 h-8 rounded-lg bg-zinc-700 flex items-center justify-center flex-shrink-0">
+                                        <div className="w-8 h-8 rounded-lg bg-zinc-700 flex items-center justify-center shrink-0">
                                             <User className="w-4 h-4 text-zinc-300" />
                                         </div>
                                     )}
@@ -146,7 +146,7 @@ export default function MasterAgentPage() {
                             {/* Typing Indicator */}
                             {isTyping && (
                                 <div className="flex gap-4 justify-start">
-                                    <div className="w-8 h-8 rounded-lg bg-zinc-800 border border-zinc-700 flex items-center justify-center flex-shrink-0">
+                                    <div className="w-8 h-8 rounded-lg bg-zinc-800 border border-zinc-700 flex items-center justify-center shrink-0">
                                         <Bot className="w-4 h-4 text-zinc-400" />
                                     </div>
                                     <div className="bg-zinc-900 border border-zinc-800 rounded-2xl px-4 py-3">
@@ -165,7 +165,7 @@ export default function MasterAgentPage() {
                 )}
 
                 {/* Composer */}
-                <div className="sticky bottom-0 bg-gradient-to-t from-zinc-950 via-zinc-950 to-transparent pt-6 pb-6 px-6">
+                <div className="sticky bottom-0 bg-linear-to-t from-zinc-950 via-zinc-950 to-transparent pt-6 pb-6 px-6">
                     <div className="max-w-3xl mx-auto">
                         <div className="relative flex items-center rounded-full bg-zinc-900 border border-zinc-800 ring-1 ring-zinc-800/50 focus-within:ring-zinc-700 focus-within:border-zinc-700 transition-all h-12 px-5 pr-2">
                             <input
@@ -180,7 +180,7 @@ export default function MasterAgentPage() {
                             <button
                                 onClick={handleSend}
                                 disabled={!input.trim() || isTyping}
-                                className="w-8 h-8 rounded-full bg-zinc-100 text-zinc-900 flex items-center justify-center hover:bg-zinc-200 transition-colors disabled:opacity-30 disabled:cursor-not-allowed ml-2 flex-shrink-0"
+                                className="w-8 h-8 rounded-full bg-zinc-100 text-zinc-900 flex items-center justify-center hover:bg-zinc-200 transition-colors disabled:opacity-30 disabled:cursor-not-allowed ml-2 shrink-0"
                             >
                                 <Send className="w-4 h-4" />
                             </button>

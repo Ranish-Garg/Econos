@@ -8,7 +8,7 @@ const RPC_URL = process.env.CRONOS_RPC_URL || 'https://evm-t3.cronos.org/';
 
 // We use the WORKER key to simulate an "External Agent" paying the Master
 // In a real scenario, this would be a third-party wallet.
-const EXTERNAL_AGENT_PK = process.env.MASTER_PRIVATE_KEY!; 
+const EXTERNAL_AGENT_PK = process.env.MASTER_PRIVATE_KEY!;
 
 async function main() {
     console.log("🤖 EXTERNAL AGENT: Starting Job Negotiation...");
@@ -33,7 +33,7 @@ async function main() {
     } catch (error: any) {
         if (error.response && error.response.status === 402) {
             console.log(`   ⚠️  PAYMENT REQUIRED (402)`);
-            
+
             const paymentDetails = error.response.data.paymentDetails;
             console.log(`   💰 Price Quoted: ${paymentDetails.amount} ${paymentDetails.currency}`);
             console.log(`   fighting Recipient: ${paymentDetails.recipient}`);
@@ -42,10 +42,10 @@ async function main() {
             // STEP 2: PAY THE INVOICE
             // ---------------------------------------------------------
             console.log(`\n[Step 2] Paying the invoice...`);
-            
+
             const provider = new ethers.JsonRpcProvider(RPC_URL);
             const wallet = new ethers.Wallet(EXTERNAL_AGENT_PK, provider);
-            
+
             const tx = await wallet.sendTransaction({
                 to: paymentDetails.recipient,
                 value: ethers.parseEther(paymentDetails.amount)
@@ -59,7 +59,7 @@ async function main() {
             // STEP 3: RETRY WITH L402 HEADER
             // ---------------------------------------------------------
             console.log(`\n[Step 3] Retrying with Proof of Payment...`);
-            
+
             try {
                 const response = await axios.post(GATEWAY_URL, payload, {
                     headers: {

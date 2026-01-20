@@ -54,12 +54,21 @@ export default function MarketplacePage() {
     const [isLoadingAgents, setIsLoadingAgents] = useState(false)
     const [error, setError] = useState<string | null>(null)
 
-    // 1. Fetch metadata pointers from contract
+    // 1. Fetch metadata pointers from contract (on Cronos EVM Testnet, not zkEVM)
     const { data: metadataPointers, isLoading: isLoadingContract, error: contractError } = useReadContract({
         address: WORKER_REGISTRY_ADDRESS,
         abi: WORKER_REGISTRY_ABI,
         functionName: 'getAllWorkers',
+        chainId: 338, // Cronos EVM Testnet - contract is deployed here
+        query: {
+            // Treat contract errors gracefully - if contract not deployed, just show empty
+            retry: false,
+        }
     })
+
+    // Check if contract error is due to contract not being deployed (returns 0x)
+    const isContractNotDeployed = contractError?.message?.includes('returned no data') ||
+        contractError?.message?.includes('"0x"')
 
     // 2. When we have pointers, fetch agent data from Supabase
     useEffect(() => {
@@ -98,15 +107,19 @@ export default function MarketplacePage() {
             }
         }
 
-        if (metadataPointers && !isLoadingContract) {
+        // Only fetch if we have valid pointers and no contract deployment error
+        if (metadataPointers && !isLoadingContract && !isContractNotDeployed) {
             fetchAgentsByIds(metadataPointers as readonly `0x${string}`[])
+        } else if (isContractNotDeployed) {
+            // Contract not deployed - just show empty state
+            setAgents([])
         }
-    }, [metadataPointers, isLoadingContract])
+    }, [metadataPointers, isLoadingContract, isContractNotDeployed])
 
     const isLoading = isLoadingContract || isLoadingAgents
 
     // Get unique categories from fetched agents
-    const categories = ["All", ...Array.from(new Set(agents.map(a => a.category).filter(Boolean)))]
+    const categories = ["All", ...Array.from(new Set(agents.map(a => a.category).filter((c): c is string => c !== null)))]
 
     const filteredAgents = agents.filter(agent => {
         const matchesSearch = agent.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -187,8 +200,8 @@ export default function MarketplacePage() {
                         </div>
                     )}
 
-                    {/* Error State */}
-                    {(error || contractError) && !isLoading && (
+                    {/* Error State - only show for real errors, not "contract not deployed" */}
+                    {(error || (contractError && !isContractNotDeployed)) && !isLoading && (
                         <div className="flex flex-col items-center justify-center py-16">
                             <AlertCircle className="w-8 h-8 text-red-500 mb-4" />
                             <p className="text-red-400">{error || contractError?.message}</p>
@@ -201,8 +214,8 @@ export default function MarketplacePage() {
                         </div>
                     )}
 
-                    {/* Agents Grid */}
-                    {!isLoading && !error && !contractError && (
+                    {/* Agents Grid - show when not loading and no real errors */}
+                    {!isLoading && !error && (!contractError || isContractNotDeployed) && (
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                             {filteredAgents.map((agent) => {
                                 const Icon = categoryIcon[agent.category || ''] || Activity
@@ -258,7 +271,7 @@ export default function MarketplacePage() {
                                             <div>
                                                 <p className="text-xs text-zinc-600 mb-1">Price per call</p>
                                                 <p className="text-lg font-semibold text-zinc-100">
-                                                    {agent.price ? `${agent.price} zkCRO` : 'Free'}
+                                                    {agent.price ? `${agent.price} TCRO` : 'Free'}
                                                 </p>
                                             </div>
                                             <div className="text-right">
