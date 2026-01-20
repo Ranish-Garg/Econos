@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useRef, useState } from 'react'
+import { useCallback, useMemo, useRef, useState } from 'react'
 import ReactFlow, {
     Background,
     Controls,
@@ -38,6 +38,19 @@ function CanvasContent() {
     const [nodes, setNodes, onNodesChange] = useNodesState([])
     const [edges, setEdges, onEdgesChange] = useEdgesState([])
     const [reactFlowInstance, setReactFlowInstance] = useState<ReactFlowInstance | null>(null)
+
+    // Calculate total pipeline amount
+    const pipelineStats = useMemo(() => {
+        let total = 0
+        nodes.forEach((node: Node<PipelineNodeData>) => {
+            const price = parseFloat(node.data?.agent?.price || '0')
+            total += price
+        })
+        return {
+            agentCount: nodes.length,
+            totalAmount: total.toFixed(4),
+        }
+    }, [nodes])
 
     // Handle new connections between nodes
     const onConnect = useCallback(
@@ -143,7 +156,7 @@ function CanvasContent() {
     }, [nodes, edges])
 
     return (
-        <div className="flex h-screen bg-zinc-950 pt-16">
+        <div className="flex h-[calc(100vh-5rem)] bg-zinc-950 mt-20">
             {/* Sidebar */}
             <AgentSidebar onDragStart={onDragStart} />
 
@@ -176,6 +189,23 @@ function CanvasContent() {
                         <div className="text-center">
                             <p className="text-zinc-500 text-sm mb-1">Drag agents from the sidebar</p>
                             <p className="text-zinc-600 text-xs">Connect them to build your pipeline</p>
+                        </div>
+                    </div>
+                )}
+
+                {/* Pipeline Stats Bar */}
+                {nodes.length > 0 && (
+                    <div className="absolute bottom-16 left-1/2 -translate-x-1/2 z-20
+                                    bg-zinc-900/95 backdrop-blur-sm border border-zinc-800 
+                                    rounded-lg px-4 py-2 flex items-center gap-4 shadow-lg pointer-events-auto">
+                        <div className="flex items-center gap-2">
+                            <span className="text-zinc-400 text-xs">Agents:</span>
+                            <span className="text-white font-medium text-sm">{pipelineStats.agentCount}</span>
+                        </div>
+                        <div className="w-px h-4 bg-zinc-700" />
+                        <div className="flex items-center gap-2">
+                            <span className="text-zinc-400 text-xs">Total Cost:</span>
+                            <span className="text-green-400 font-medium text-sm">{pipelineStats.totalAmount} TCRO</span>
                         </div>
                     </div>
                 )}

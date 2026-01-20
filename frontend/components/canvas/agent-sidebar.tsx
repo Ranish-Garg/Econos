@@ -38,7 +38,7 @@ export function AgentSidebar({ onDragStart }: AgentSidebarProps) {
     )
 
     return (
-        <div className="w-56 h-full bg-zinc-900/80 border-r border-zinc-800 flex flex-col">
+        <div className="w-56 h-full bg-zinc-900/80 border-r border-zinc-800 flex flex-col overflow-hidden">
             {/* Header */}
             <div className="p-3 border-b border-zinc-800">
                 <h2 className="text-sm font-semibold text-zinc-100 mb-2">Agents</h2>

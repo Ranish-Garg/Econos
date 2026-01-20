@@ -1,8 +1,8 @@
 'use client'
 
 import { memo } from 'react'
-import { Handle, Position, NodeProps } from 'reactflow'
-import { Brain, Zap, TrendingUp, Database, Shield, Activity } from 'lucide-react'
+import { Handle, Position, NodeProps, useReactFlow } from 'reactflow'
+import { Brain, Zap, TrendingUp, Database, Shield, Activity, Trash2 } from 'lucide-react'
 import type { PipelineNodeData } from '@/types/agent'
 
 // Map categories to icons
@@ -14,18 +14,39 @@ const categoryIcon: Record<string, React.ComponentType<{ className?: string }>> 
     security: Shield,
 }
 
-function AgentNodeComponent({ data, selected }: NodeProps<PipelineNodeData>) {
+function AgentNodeComponent({ id, data, selected }: NodeProps<PipelineNodeData>) {
     const { agent } = data
+    const { deleteElements } = useReactFlow()
     const Icon = categoryIcon[agent.category || ''] || Activity
+
+    const handleRemove = (e: React.MouseEvent) => {
+        e.stopPropagation()
+        deleteElements({ nodes: [{ id }] })
+    }
 
     return (
         <div
             className={`
-        relative px-2.5 py-1.5 min-w-[120px] max-w-[140px] rounded-md 
+        group relative px-2.5 py-1.5 min-w-[120px] max-w-[140px] rounded-md 
         bg-zinc-900 border transition-all duration-200
         ${selected ? 'border-blue-500 shadow-sm shadow-blue-500/20' : 'border-zinc-700 hover:border-zinc-600'}
       `}
         >
+            {/* Remove Button - appears on hover with smooth transition */}
+            <button
+                onClick={handleRemove}
+                className="absolute -top-2 -right-2 w-5 h-5 
+                           bg-zinc-800 border border-zinc-600 rounded-md
+                           flex items-center justify-center 
+                           scale-0 group-hover:scale-100 
+                           transition-all duration-150 ease-out
+                           hover:bg-red-500 hover:border-red-400 
+                           shadow-sm z-10"
+                title="Remove agent"
+            >
+                <Trash2 className="w-2.5 h-2.5 text-zinc-400 group-hover:text-white" />
+            </button>
+
             {/* Input Handle */}
             <Handle
                 type="target"
