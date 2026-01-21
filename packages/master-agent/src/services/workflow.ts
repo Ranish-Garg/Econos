@@ -140,8 +140,13 @@ async function pollAndRelay(taskId: string, workerUrl: string, escrow: any) {
                 // Return data so runAgentWorkflow can grab it
                 return finalData;
             }
-        } catch (e) {
-            // Still waiting for worker to complete
+        } catch (e: any) {
+            // Only log if it's NOT just a 404 (waiting for proof)
+            if (e.response && e.response.status === 404) {
+                if (attempts % 5 === 0) console.log(`   ⏳ Waiting for proof from Sidecar (Attempt ${attempts})...`);
+            } else {
+                console.error(`   ⚠️ Relay Attempt Failed: ${e.message}`);
+            }
         }
         await new Promise(r => setTimeout(r, 3000)); // Poll every 3 seconds
     }

@@ -33,16 +33,17 @@ const tasks: Record<string, any> = {};
 async function verifyDeposit(taskId: string): Promise<boolean> {
     try {
         // Minimal ABI to check deposit
-        const abi = ["function tasks(bytes32) view returns (address, address, uint256, uint256, bool, bool)"];
+        // Struct: address master, address worker, uint256 amount, uint256 deadline, TaskStatus status
+        const abi = ["function tasks(bytes32) view returns (address, address, uint256, uint256, uint8)"];
         const contract = new ethers.Contract(ESCROW_CONTRACT_ADDRESS!, abi, provider);
-        
+
         const task = await contract.tasks(taskId);
-        // task structure: [creator, worker, amount, deadline, isCompleted, isRelayed]
-        
-        // Check if assigned to us and amount > 0
-        return (task[1].toLowerCase() === wallet.address.toLowerCase() && task[2] > 0);
-    } catch (e) {
-        console.error(" Deposit Check Failed:", e);
+        // task structure: [master, worker, amount, deadline, status]
+
+        // Check if assigned to us, amount > 0, and status is OPEN (0)
+        return (task[1].toLowerCase() === wallet.address.toLowerCase() && task[2] > 0 && task[4] === 0n);
+    } catch (e: any) {
+        console.error(` Deposit Check Failed: ${e.code || 'UNKNOWN'} - ${e.shortMessage || e.message}`);
         return false;
     }
 }
@@ -74,6 +75,7 @@ app.post('/authorize/:taskId', async (req, res) => {
     const { payload } = req.body; // Contains { params: {...} }
 
     console.log(`Received Task: ${taskId}`);
+    console.log(`📦 Payload:`, JSON.stringify(payload, null, 2));
 
     // A. Verify Deposit (Security)
     const hasFunds = await verifyDeposit(taskId);
@@ -86,10 +88,12 @@ app.post('/authorize/:taskId', async (req, res) => {
     try {
         // B. PROXY TO INTERNAL WEB2 API
         console.log(`➡️ Forwarding to Web2 API: ${INTERNAL_API_URL}`);
+        console.log(`📤 Sending Data:`, JSON.stringify(payload.params, null, 2));
+
         const web2Response = await axios.post(INTERNAL_API_URL, payload.params);
-        
+
         const resultData = web2Response.data;
-        console.log(`⬅️ Received Web2 Result`);
+        console.log(`⬅️ Received Web2 Result:`, JSON.stringify(resultData, null, 2));
 
         // C. SIGN RESULT
         const proof = await signResult(taskId, resultData);
@@ -105,6 +109,10 @@ app.post('/authorize/:taskId', async (req, res) => {
 
     } catch (error: any) {
         console.error("❌ Web2 API Execution Failed:", error.message);
+        if (error.response) {
+            console.error("   Status:", error.response.status);
+            console.error("   Data:", JSON.stringify(error.response.data));
+        }
         res.status(500).json({ error: "Internal API Failed" });
     }
 });

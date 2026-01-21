@@ -33,11 +33,13 @@ services:
     env_file:
       - .env
     restart: unless-stopped
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
 `
 }
 
 // Generate .env file content
-function generateEnvFile(endpoint: string): string {
+function generateEnvFile(endpoint: string, internalEndpoint: string): string {
     return `# Econos Sidecar Configuration
 # Generated for your registered agent
 
@@ -49,7 +51,7 @@ WORKER_PRIVATE_KEY=0xYOUR_PRIVATE_KEY_HERE
 # === Pre-configured values (do not change) ===
 ESCROW_ADDRESS=${ESCROW_ADDRESS}
 RPC_URL=${RPC_URL}
-INTERNAL_API_URL=${endpoint}
+INTERNAL_API_URL=${internalEndpoint}
 PORT=3001
 `
 }
@@ -76,6 +78,7 @@ export default function RegisterPage() {
         description: "",
         category: "",
         endpoint: "",
+        internalEndpoint: "",
         price: "",
         capabilities: "",
     })
@@ -99,7 +102,7 @@ export default function RegisterPage() {
                     formData.category !== ""
             case 2:
                 // Only endpoint is required, capabilities (JSON schema) is optional
-                return formData.endpoint.trim() !== ""
+                return formData.endpoint.trim() !== "" && formData.internalEndpoint.trim() !== ""
             case 3:
                 return formData.price.trim() !== "" && parseFloat(formData.price) > 0
             case 4:
@@ -294,11 +297,29 @@ export default function RegisterPage() {
                                         type="url"
                                         value={formData.endpoint}
                                         onChange={(e) => updateForm("endpoint", e.target.value)}
-                                        placeholder="https://your-api.com/inference"
+                                        placeholder="http://localhost:3001"
                                         className={`w-full px-4 py-3 rounded-xl bg-zinc-950 border text-zinc-100 placeholder-zinc-600 focus:outline-none focus:border-zinc-700 ${formData.endpoint.trim() === "" ? "border-zinc-800" : "border-zinc-700"}`}
                                     />
                                     {formData.endpoint.trim() === "" && (
-                                        <p className="text-xs text-zinc-500 mt-1">Required</p>
+                                        <p className="text-xs text-zinc-500 mt-1">Required - This is your Sidecar's public URL</p>
+                                    )}
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-zinc-300 mb-2">
+                                        Internal API Endpoint <span className="text-red-400">*</span>
+                                        <span className="block text-xs text-zinc-500 font-normal mt-1">
+                                            Your actual Web2 API (e.g., http://host.docker.internal:8080/weather)
+                                        </span>
+                                    </label>
+                                    <input
+                                        type="url"
+                                        value={formData.internalEndpoint}
+                                        onChange={(e) => updateForm("internalEndpoint", e.target.value)}
+                                        placeholder="http://host.docker.internal:8080/weather"
+                                        className={`w-full px-4 py-3 rounded-xl bg-zinc-950 border text-zinc-100 placeholder-zinc-600 focus:outline-none focus:border-zinc-700 ${formData.internalEndpoint.trim() === "" ? "border-zinc-800" : "border-zinc-700"}`}
+                                    />
+                                    {formData.internalEndpoint.trim() === "" && (
+                                        <p className="text-xs text-zinc-500 mt-1">Required - Used for Sidecar configuration only</p>
                                     )}
                                 </div>
                                 <div>
@@ -468,7 +489,7 @@ app.post('/v1/inference',
                                                         docker-compose.yml
                                                     </button>
                                                     <button
-                                                        onClick={() => downloadFile(generateEnvFile(formData.endpoint), '.env')}
+                                                        onClick={() => downloadFile(generateEnvFile(formData.endpoint, formData.internalEndpoint), '.env')}
                                                         className="flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-zinc-200 text-sm font-medium transition-colors"
                                                     >
                                                         <Download className="w-4 h-4" />
